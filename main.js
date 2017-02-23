@@ -11,6 +11,15 @@ function start() {
 
   const onMessage = ({ data }) => {
     switch(data.type) {
+
+      case 'MY_VALUE_FOR_VIEW':
+        /* this is used only to give the user an immediate feedback on the UI,
+         * shouldn't exist in the CDRT since the update is 1-5 seconds.
+         */
+        const node = nodes[data.from]
+        node.value = data.value
+        node.element.innerText = `${node.value} - ${node.total}`
+        break
       
       case 'MY_VALUE': {
         const node = nodes[data.from]
@@ -72,14 +81,18 @@ const node = options => {
 
   const myValue = (from, to, value) => ({ type: 'MY_VALUE', from, to, value })
   const myTotal = (from, total) => ({ type: 'MY_TOTAL', from, total })
-  // TODO: check against lower bound = 1000
+  const myValueForView = (from, value) => ({ type: 'MY_VALUE_FOR_VIEW', from, value })
+
   const next = () => Math.round((Math.random()*10))%3
+  const when = () => {
+    const t = Math.round((Math.random()*100000))%5000
+    return (t < 1000) ? next() : t
+  }
   const sendTotalTo = to => {
     if (to !== id) {
       postMessage(myValue(id, to, state))
     }
-    const when = Math.round((Math.random()*100000))%5000
-    return setTimeout(() => sendTotalTo(next()), when)
+    return setTimeout(() => sendTotalTo(next()), when())
   }
   sendTotalTo(next())
 
@@ -88,7 +101,7 @@ const node = options => {
 
       case 'INCREMENT':
         state += 1
-        log(`state: ${state}`)
+        postMessage(myValueForView(id, state))
         break
 
       case 'TOTAL':
@@ -96,7 +109,6 @@ const node = options => {
           total = data.value
           postMessage(myTotal(id, total))
         }
-        log(`total: ${state}`)
         break
 
       default:
@@ -108,5 +120,6 @@ const node = options => {
 
 // from https://medium.com/@roman01la/run-web-worker-with-a-function-rather-than-external-file-303add905a0#.tqmx6rb1a
 function run(fn, options) {
+  // TODO: how to pass functions?
   return new Worker(URL.createObjectURL(new Blob([`(${fn})('${JSON.stringify(options)}')`])));
 }
