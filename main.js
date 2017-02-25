@@ -2,6 +2,7 @@ const makeUIWorker = (id, value, total) => {
 	const div = document.createElement('div');
 	div.innerHTML = `
 		<div class="bagde">
+			<h1>${id}</h1>
 			<span>Value: <span id="value">${value}</span></span>
 			<span>Total: <span id="total">${total}</span></span>
 		</div>
@@ -21,19 +22,17 @@ const updateTotal = (uiWorker, total) => {
 }
 
 const increment = () => ({ type: 'INCREMENT' })
-const total = (to, value) => ({ type: 'TOTAL', to, value })
+//const total = (to, value) => ({ type: 'TOTAL', to, value })
 
 function start() {
 
   const onMessage = ({ data }) => {
     switch(data.type) {
 
-      case 'MY_VALUE': {
-        const node = nodes[data.from]
-        node.value = data.value
-        const sum = nodes.reduce((acc, n) => acc+n.value, 0)
-				// TODO: I'm not sure this is a correct implementation.
-        node.worker.postMessage(total(data.to, sum))
+      case 'MY_STATE': {
+        const node = nodes[data.to]
+        node.worker.postMessage(data)
+				node
         break
       }
 
@@ -65,42 +64,48 @@ function start() {
   for (let i = 0; i < 3; i+=1) {
     let worker = run(node, { id: i })
     worker.onmessage = onMessage
-		const wdom = makeUIWorker(i, 0, 0)
-		nodesContainer.appendChild(wdom)
-    const element = Snap(`#worker-${i}`) // document.getElementById(`worker-${i}`)
+		const dom = makeUIWorker(i, 0, 0)
+		nodesContainer.appendChild(dom)
+    const element = Snap(`#worker-${i}`)
     element.circle(80,80,80)
     element.attr({
       fill: "#bada55",
       stroke: "#000",
       strokeWidth: 1
     });
-    nodes.push({
-      worker, value: 0, element, dom: wdom
-    })
+    nodes.push({ worker, element, dom })
   }
 
+	const animateNode = node => {
+		node.element.transform('r20,50,50')
+		setTimeout(() => node.element.transform('S1.0'), 1000)
+	}
+
   document.onkeypress = e => {
-    switch(e.key) {
-      case '1':
-        nodes[0].worker.postMessage(increment())
-        break
-      case '2':
-        nodes[1].worker.postMessage(increment())
-        break
-      case '3':
-        nodes[2].worker.postMessage(increment()) 
-        break
-    }
+		const node = nodes[parseInt(e.key)-1]
+		if (node) {
+			animateNode(node)
+			node.worker.postMessage(increment())
+		}
   }
 }
 
 const node = options => {
   const { id } = JSON.parse(options)
 
-  let state = 0
+  let value = 0
   let total = 0
+	const siblings = {}
 
-  const myValue = (from, to, value) => ({ type: 'MY_VALUE', from, to, value })
+  const myState = (to, value, total) => ({
+		from: id,
+		to,
+		total,
+		type: 'MY_STATE',
+		value
+	})
+
+
   const myTotalForView = (from, total) => ({ type: 'UI:MY_TOTAL', from, total })
   const myValueForView = (from, value) => ({ type: 'UI:MY_VALUE', from, value })
 
@@ -111,7 +116,7 @@ const node = options => {
   }
   const sendTotalTo = to => {
     if (to !== id) {
-      postMessage(myValue(id, to, state))
+      postMessage(myState(to, value, total))
     }
     return setTimeout(() => sendTotalTo(next()), when())
   }
@@ -121,17 +126,16 @@ const node = options => {
     switch(data.type) {
 
       case 'INCREMENT':
-        state += 1
-        postMessage(myValueForView(id, state))
+        value += 1
+        postMessage(myValueForView(id, value))
 				total += 1
 				postMessage(myTotalForView(id, total))
         break
 
-      case 'TOTAL':
-        if (data.value > total) {
-          total = data.value
-          postMessage(myTotalForView(id, total))
-        }
+      case 'MY_STATE':
+				siblings[data.from]	= data.value
+        total = Object.values(siblings).reduce((acc, n) => acc+n, 0) + value
+        postMessage(myTotalForView(id, total))
         break
 
       default:
