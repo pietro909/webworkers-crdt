@@ -19,12 +19,14 @@ body {
   */
 }
 
+/*
 svg {
 	display: flex;
 	padding: 20px;
 	margin: auto;
 	width: 160px;
 }
+*/
 
 .bagde {
 	position: absolute;
@@ -34,6 +36,7 @@ svg {
 	bottom: 0;
 	transform: translateX(-100px);
 	padding-bottom: 31px;
+	pointer-events: none;
 }
 
 .bagde > span {

@@ -1,28 +1,3 @@
-const makeUIWorker = (id, value, total) => {
-	const div = document.createElement('div');
-	div.innerHTML = `
-		<div class="bagde">
-			<h1>${id}</h1>
-			<span>Value: <span id="value">${value}</span></span>
-			<span>Total: <span id="total">${total}</span></span>
-		</div>
-   	<svg id="worker-${id}"></svg>
-		`
-	return div
-}
-
-const updateValue = (uiWorker, value) => {
-	const p = uiWorker.querySelector('#value')
-	p.innerText = value
-}
-
-const updateTotal = (uiWorker, total) => {
-	const p = uiWorker.querySelector('#total')
-	p.innerText = total
-}
-
-const increment = () => ({ type: 'INCREMENT' })
-//const total = (to, value) => ({ type: 'TOTAL', to, value })
 
 function start() {
 
@@ -30,9 +5,26 @@ function start() {
     switch(data.type) {
 
       case 'MY_STATE': {
-        const node = nodes[data.to]
-        node.worker.postMessage(data)
-				node
+				const from = nodes[data.from]
+				const to = nodes[data.to]
+				const group = svg.group(
+					from.msg.clone(),
+					from.value.clone().attr({
+						text: `${data.value}, ${data.total}`
+					})
+				)
+				const targetPosition = {
+					x: to.circle.attr('cx') - from.circle.attr('cx'),
+					y: to.circle.attr('cy') - from.circle.attr('cy')
+				}
+				group.animate({
+					transform: `t${targetPosition.x},${targetPosition.y}` 
+				}, 2000, () => {
+					to.circle.animate({ opacity: '0.4' }, 125)
+					setTimeout(() => to.circle.animate({ opacity: '1.0' }, 500),250)
+					to.worker.postMessage(data)
+					group.remove()
+				})
         break
       }
 
@@ -42,15 +34,15 @@ function start() {
        * used for the CRDT algorithm.
        */
 
-      case 'UI:MY_VALUE':
+      case 'UI:MY_VALUE': {
         const node = nodes[data.from]
-        node.value = data.value
-				updateValue(node.dom, data.value)
+				node.value.attr({ text: data.value.toString() })
         break
+			}
       
       case 'UI:MY_TOTAL': {
         const node = nodes[data.from]
-				updateTotal(node.dom, data.total)
+				node.total.attr({ text: `Total: ${data.total}`})
         break
       }
 
@@ -59,38 +51,65 @@ function start() {
     }
   }
 
+	const centerText = (text, vertical) => {
+		const size = text.node.getBoundingClientRect()
+		text.attr({ x: text.attr('x') - size.width/2 })
+		if (vertical) {
+			//text.attr({ y:  size.height/2 - text.attr('y') })
+		}
+	}
+
   const nodes = []
-	const nodesContainer = document.getElementById('nodes-container')
+
+	//const nodesContainer = document.getElementById('nodes-container')
+	const width = window.innerWidth	
+	const height = window.innerHeight	
+	const radius = 80
+	const svg = Snap(width, height)
+	//nodesContainer.append(svg)
+	const positions = [
+		{x: radius*1.5, y:  radius*1.5 },
+		{x: width - radius*1.5, y: radius*1.5 },
+		{x: width/2, y: height - radius*2 }
+	]
+
   for (let i = 0; i < 3; i+=1) {
-    let worker = run(node, { id: i })
+    let worker = run(actor, { id: i })
     worker.onmessage = onMessage
-		const dom = makeUIWorker(i, 0, 0)
-		nodesContainer.appendChild(dom)
-    const element = Snap(`#worker-${i}`)
-    element.circle(80,80,80)
-    element.attr({
+    svg.attr({
       fill: "#bada55",
       stroke: "#000",
       strokeWidth: 1
     });
-    nodes.push({ worker, element, dom })
+		const pos = positions[i]
+    const circle = svg.circle(pos.x,pos.y,radius)
+		const msg = svg.circle(pos.x,pos.y,20)
+		const value = svg.text(pos.x,pos.y,'0')
+		centerText(value, true)
+		const total = svg.text(pos.x,pos.y+radius/2,'Total: 0')
+		centerText(total)
+		const node = { worker, circle, msg, value, total }
+		circle.click((me => () => onIncrement(me))(node))
+    nodes.push(node)
   }
 
-	const animateNode = node => {
-		node.element.transform('r20,50,50')
-		setTimeout(() => node.element.transform('S1.0'), 1000)
+
+
+	const onIncrement = node => {
+		node.circle.animate({ transform: 's0.7' }, 125)
+		setTimeout(() => node.circle.animate({ transform: 's1.0' }, 250, mina.bounce), 60)
+		node.worker.postMessage({ type: 'INCREMENT' })
 	}
 
   document.onkeypress = e => {
 		const node = nodes[parseInt(e.key)-1]
 		if (node) {
-			animateNode(node)
-			node.worker.postMessage(increment())
+			onIncrement(node)
 		}
   }
 }
 
-const node = options => {
+const actor = options => {
   const { id } = JSON.parse(options)
 
   let value = 0
@@ -104,7 +123,6 @@ const node = options => {
 		type: 'MY_STATE',
 		value
 	})
-
 
   const myTotalForView = (from, total) => ({ type: 'UI:MY_TOTAL', from, total })
   const myValueForView = (from, value) => ({ type: 'UI:MY_VALUE', from, value })
@@ -120,7 +138,7 @@ const node = options => {
     }
     return setTimeout(() => sendTotalTo(next()), when())
   }
-  sendTotalTo(next())
+ 	sendTotalTo(next())
 
   onmessage = ({ data }) => {
     switch(data.type) {
@@ -135,7 +153,10 @@ const node = options => {
       case 'MY_STATE':
 				siblings[data.from]	= data.value
         total = Object.values(siblings).reduce((acc, n) => acc+n, 0) + value
-        postMessage(myTotalForView(id, total))
+				if (data.total > total) {
+					total = data.total 
+				}
+				postMessage(myTotalForView(id, total))
         break
 
       default:
