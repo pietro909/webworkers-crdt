@@ -1,13 +1,15 @@
 <!DOCTYPE html>
 <html>
   <head>
+    <script type="text/javascript" src="node_modules/snapsvg/dist/snap.svg.js"></script>
+    <script type="text/javascript" src="node_modules/dom-component/build/build.js"></script>
     <script type="text/javascript" src="main.js"></script>
+    <link href="styles.css" rel="stylesheet">
   </head>
   <body onload="start()">
     <section>
-      <div id="worker-0"></div>
-      <div id="worker-1"></div>
-      <div id="worker-2"></div>
+      <div id="nodes-container" class='nodes'>
+      </div>
     </section>
   </body>
 </html
