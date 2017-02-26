@@ -68,7 +68,7 @@ function start() {
     let worker = run(actor, { id: i })
     worker.onmessage = onMessage
     svg.attr({
-      fill: "#9fdc46",
+      fill: "#ffe298",
       stroke: "#000",
       strokeWidth: 1
     });
