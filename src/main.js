@@ -1,37 +1,51 @@
 
 function start() {
 
+	const width = window.innerWidth	
+	const height = window.innerHeight - 200	
+	const radius = 80
+	const svg = Snap(width, height)
+	const positions = [
+		{x: radius*1.5, y:  radius*1.5 },
+		{x: width - radius*1.5, y: radius*1.5 },
+		{x: width/2, y: height - radius*2 }
+	]
+
   const onMessage = ({ data }) => {
     switch(data.type) {
 
-      case 'MY_STATE': {
+			case 'MY_STATE': {
 				const from = nodes[data.from]
 				const to = nodes[data.to]
-				const group = svg.group(
-					from.msg.clone(),
-					from.value.clone().attr({
-						text: `${data.value}, ${data.total}`
-					})
-				)
+				const msg = from.msg.clone().attr({
+					opacity: 1,
+					fill: '#f0624c',
+					strokeWidth: 0
+				}).prependTo(svg)
+				msg.select('text').attr({
+					text: `${data.value}, ${data.total}`,
+					fill: '#000000'
+				})
 				const targetPosition = {
 					x: to.circle.attr('cx') - from.circle.attr('cx'),
 					y: to.circle.attr('cy') - from.circle.attr('cy')
 				}
-				group.animate({
-					transform: `t${targetPosition.x},${targetPosition.y}` 
-				}, 2000, () => {
+				msg.animate({
+					transform: `t${targetPosition.x},${targetPosition.y}`,
+				}, 1600, () => {
+					msg.animate({ opacity: '0.0' }, 125)
 					to.circle.animate({ opacity: '0.4' }, 125)
-					setTimeout(() => to.circle.animate({ opacity: '1.0' }, 500),250)
+					setTimeout(() => to.circle.animate({ opacity: 1.0 }, 500),250)
 					to.worker.postMessage(data)
-					group.remove()
+					msg.remove()
 				})
-        break
-      }
+				break
+			}
 
       /* UI messages are used only to give the user an immediate feedback on the UI,
        * since the webworker can't access the DOM.
-       * Shouldn't exist in the CDRT since the update is 1-5 seconds, and that's why they're not
-       * used for the CRDT algorithm.
+       * Shouldn't exist in the CDRT since the update is 1-5 seconds, and that's why
+			 * they're not used for the calculating totals.
        */
 
       case 'UI:MY_VALUE': {
@@ -40,60 +54,56 @@ function start() {
         break
 			}
       
-      case 'UI:MY_TOTAL': {
-        const node = nodes[data.from]
+			case 'UI:MY_TOTAL': {
+				const node = nodes[data.from]
 				node.total.attr({ text: `Total: ${data.total}`})
-        break
-      }
-
-      default:
-        console.error(data)
+				break
+			}
     }
   }
 
-	const centerText = (text, vertical) => {
-		const size = text.node.getBoundingClientRect()
-		text.attr({ x: text.attr('x') - size.width/2 })
-		if (vertical) {
-			//text.attr({ y:  size.height/2 - text.attr('y') })
-		}
-	}
+  const nodes = {}
 
-  const nodes = []
-
-	//const nodesContainer = document.getElementById('nodes-container')
-	const width = window.innerWidth	
-	const height = window.innerHeight	
-	const radius = 80
-	const svg = Snap(width, height)
-	//nodesContainer.append(svg)
-	const positions = [
-		{x: radius*1.5, y:  radius*1.5 },
-		{x: width - radius*1.5, y: radius*1.5 },
-		{x: width/2, y: height - radius*2 }
-	]
-
-  for (let i = 0; i < 3; i+=1) {
+  for (let i = 1; i < 4; i+=1) {
     let worker = run(actor, { id: i })
     worker.onmessage = onMessage
     svg.attr({
-      fill: "#bada55",
+      fill: "#9fdc46",
       stroke: "#000",
       strokeWidth: 1
     });
-		const pos = positions[i]
-    const circle = svg.circle(pos.x,pos.y,radius)
-		const msg = svg.circle(pos.x,pos.y,20)
-		const value = svg.text(pos.x,pos.y,'0')
-		centerText(value, true)
-		const total = svg.text(pos.x,pos.y+radius/2,'Total: 0')
-		centerText(total)
+		const pos = positions[i-1]
+		const msgCircle = svg.circle(pos.x,pos.y,30)
+		const msgTxt = svg.text(pos.x,pos.y,'0, 0').attr({
+			'text-anchor': 'middle',
+			'alignment-baseline': 'middle'
+		})
+		const msg = svg.group(msgCircle, msgTxt).attr({ opacity: 0 })
+    const circle = svg.circle(pos.x,pos.y,radius).attr({
+			cursor: 'pointer'
+		})
+		const value = svg.text(pos.x,pos.y,'0').attr({
+			'text-anchor': 'middle',
+			fill: 'black',
+			strokeWidth: 0.5
+		})
+		const total = svg.text(pos.x,pos.y+radius/2,'Total: 0').attr({ 'text-anchor': 'middle' })
+		const clickMe = svg.text(pos.x,pos.y+radius*1.5,`Increment #${i}`).attr({
+			'text-anchor': 'middle',
+			stroke: 'black',
+			fill: 'black',
+			opacity: 0
+		})
 		const node = { worker, circle, msg, value, total }
 		circle.click((me => () => onIncrement(me))(node))
-    nodes.push(node)
+		circle.mouseover((me => () => {
+			me.attr({ opacity: 1 })
+		})(clickMe))
+		circle.mouseout((me => () => {
+			me.attr({ opacity: 0 })
+		})(clickMe))
+    nodes[i] = node
   }
-
-
 
 	const onIncrement = node => {
 		node.circle.animate({ transform: 's0.7' }, 125)
@@ -102,7 +112,7 @@ function start() {
 	}
 
   document.onkeypress = e => {
-		const node = nodes[parseInt(e.key)-1]
+		const node = nodes[parseInt(e.key)]
 		if (node) {
 			onIncrement(node)
 		}
@@ -127,7 +137,7 @@ const actor = options => {
   const myTotalForView = (from, total) => ({ type: 'UI:MY_TOTAL', from, total })
   const myValueForView = (from, value) => ({ type: 'UI:MY_VALUE', from, value })
 
-  const next = () => Math.round((Math.random()*10))%3
+  const next = () => Math.round((Math.random()*10))%4 || 1
   const when = () => {
     const t = Math.round((Math.random()*100000))%5000
     return (t < 1000) ? when() : t
@@ -158,9 +168,6 @@ const actor = options => {
 				}
 				postMessage(myTotalForView(id, total))
         break
-
-      default:
-        console.error(data)
     }
   }
 }

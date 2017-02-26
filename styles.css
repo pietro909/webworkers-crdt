@@ -2,51 +2,11 @@ body {
 	font-family: sans-serif;
 }
 
-.nodes {
-  display: flex;
-  flex: 1 1 auto;
-  height: 400px;
-  flex-wrap: wrap;
-}
-
-.nodes > div {
-  flex: 1 1 auto;
-	position: relative;
-  width: 50%;
-  /*
-  max-width: 240px;
-  max-height: 240px;
-  */
-}
-
-/*
 svg {
-	display: flex;
-	padding: 20px;
-	margin: auto;
-	width: 160px;
+	background-color: #81baca;
 }
-*/
 
-.bagde {
-	position: absolute;
-	width: 200px;
-	height: 50px;
-	left: 50%;
-	bottom: 0;
-	transform: translateX(-100px);
-	padding-bottom: 31px;
+text {
 	pointer-events: none;
 }
 
-.bagde > span {
-	color: #424242;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	height: 50%;
-}
-
-.bagde span {
-	padding: 0 10px;
-}

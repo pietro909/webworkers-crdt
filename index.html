@@ -2,11 +2,19 @@
 <html>
   <head>
     <script type="text/javascript" src="node_modules/snapsvg/dist/snap.svg.js"></script>
-    <script type="text/javascript" src="node_modules/dom-component/build/build.js"></script>
     <script type="text/javascript" src="main.js"></script>
     <link href="styles.css" rel="stylesheet">
   </head>
   <body onload="start()">
+		<section>
+			<h1>CRDT Bean counter</h1>
+			<p>Click on each counter to increment by one, or press the keys 1 to 3.</p>
+			<p>
+					Messages are sent each 1 to 5 seconds to a random sibling. The total value is
+					calculated based on the sum of known states and compared with the remote one;
+					the greatest total is kept, since the trasformation is monotonic. 
+			</p>
+		</section>
   </body>
 </html
   
