@@ -1,5 +1,7 @@
 body {
 	font-family: sans-serif;
+	margin: 0;
+	font-size: 16px;
 }
 
 svg {
@@ -8,5 +10,9 @@ svg {
 
 text {
 	pointer-events: none;
+}
+
+section {
+	padding: 0 1rem;
 }
 
